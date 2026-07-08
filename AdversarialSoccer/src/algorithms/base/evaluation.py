@@ -12,6 +12,35 @@ from engine.model import MatchOutcome, Position, Team
 from engine.rules import compute_shot_plan
 from engine.state import GameState
 
+# --- 1: Instrucción Terminal Scores ---
+
+PUNTAJE_VICTORIA = 1000.0
+PUNTAJE_DERROTA = -1000.0
+PUNTAJE_EMPATE = 0
+
+# --- 2: Puntajes ofensivos ---
+
+PUNTAJE_AVANCE=3.0
+PUNTAJE_DISTANCIA_META=4.0
+PUNTAJE_DISPARO_COL=6.0
+PUNTAJE_PASE_COL=3.0
+PUNTAJE_APOYO=1.5
+PUNTAJE_PRESION=1.0
+PUNTAJE_DISPERSION=0.5
+
+# --- 3: Puntajes defensivos ---
+
+PUNTAJE_PELIGRO=5.0
+PUNTAJE_DEFENSA=2.5
+PUNTAJE_LADO_GOAL=1.5
+PUNTAJE_MARCAJE=1.5
+PUNTAJE_DISPARO_RIVAL=4.0
+PUNTAJE_PASE_RIVAL=1.5
+PUNTAJE_LINEA_CERRADA=2.0
+
+# --- 3: Puntajes defensivos ---
+
+PENALIZACION_TURNO=0.05
 
 def evaluation_function(state: GameState) -> float:
     """
@@ -44,5 +73,115 @@ def evaluation_function(state: GameState) -> float:
     """
     ### YOUR CODE HERE ###
     # --- SOLUTION START ---
-    
+    if state.outcome is MatchOutcome.WIN:
+        return PUNTAJE_VICTORIA
+    if state.outcome is MatchOutcome.LOSS:
+        return PUNTAJE_DERROTA
+    if state.outcome is MatchOutcome.DRAW:
+        return PUNTAJE_EMPATE
+ 
+    if state.has_ball(Team.COLOMBIA):
+        puntaje = puntaje_ofensiva(state)
+    else:
+        puntaje = puntaje_defensa(state)
+ 
+    max_turns = max(state.scenario.max_turns, 1)
+    puntaje -= PENALIZACION_TURNO * (state.turn / max_turns)
+ 
+    return puntaje
     # --- SOLUTION END ---
+
+def puntaje_ofensiva(state: GameState) -> float:
+
+    escenario = state.scenario
+    norm = max(escenario.width + escenario.height, 1)
+    balon = state.get_ball_position()
+    duenio_idx = state.ball_owner
+    colombia = state.get_team_positions(Team.COLOMBIA)
+    rival = state.get_team_positions(Team.RIVAL)
+ 
+    puntaje = 0.0
+    
+    avance = balon[0] / max(escenario.width - 1, 1)
+    puntaje += PUNTAJE_AVANCE * avance
+    
+    descarte, goal_cercano = nearest_to(balon, escenario.rival_goal)
+    distancia_goal = manhattan_distance(balon, goal_cercano) / norm
+    puntaje += PUNTAJE_DISTANCIA_META * (1.0 - distancia_goal)
+    
+    plan = compute_shot_plan(state, Team.COLOMBIA)
+    if plan is not None:
+        descarte, target = plan
+        if target in escenario.rival_goal:
+            puntaje += PUNTAJE_DISPARO_COL
+        else:
+            puntaje += PUNTAJE_PASE_COL 
+    
+    apoyo = sum(
+        1
+        for idx, pos in enumerate(colombia)
+        if idx != duenio_idx
+        and Team.COLOMBIA.is_ahead_on_attack_axis(balon, pos, inclusive=False)
+    )
+    puntaje += PUNTAJE_APOYO * apoyo
+    
+    if rival:
+        descarte, nearest_rival = nearest_to(balon, rival)
+        presion = manhattan_distance(balon, nearest_rival) / norm
+        puntaje += PUNTAJE_PRESION * presion
+        
+    columnas_unicas = len({pos[0] for pos in colombia})
+    puntaje += PUNTAJE_DISPERSION * (columnas_unicas / max(len(colombia), 1))
+    
+    return puntaje
+
+def puntaje_defensa(state: GameState) -> float:
+    """Score a state where the rival currently holds the ball."""
+    escenario = state.scenario
+    norm = max(escenario.width + escenario.height, 1)
+    balon = state.get_ball_position()
+    colombia = state.get_team_positions(Team.COLOMBIA)
+    rival = state.get_team_positions(Team.RIVAL)
+ 
+    puntaje = 0.0
+ 
+    descarte, goal_cercano = nearest_to(balon, escenario.own_goal)
+    peligro = manhattan_distance(balon, goal_cercano) / norm
+    puntaje += PUNTAJE_PELIGRO * peligro  
+ 
+    if colombia:
+        descarte, colombiano_cercano = nearest_to(balon, colombia)
+        distancia_defensa = manhattan_distance(balon, colombiano_cercano) / norm
+        puntaje += PUNTAJE_DEFENSA * (1.0 - distancia_defensa)
+ 
+    propio_goal_x = next(iter(escenario.own_goal))[0]
+    if colombia:
+        goal_side = sum(
+            1
+            for pos in colombia
+            if abs(pos[0] - propio_goal_x) <= abs(balon[0] - propio_goal_x)
+        )
+        puntaje += PUNTAJE_LADO_GOAL * (goal_side / len(colombia))
+ 
+    if colombia and rival:
+        costo_marcado = 0.0
+        for rival_pos in rival:
+            closest = sorted_by_manhattan_distance(rival_pos, colombia)[0]
+            costo_marcado += manhattan_distance(rival_pos, closest) / norm
+        puntaje -= PUNTAJE_MARCAJE * (costo_marcado / len(rival))
+ 
+    plan = compute_shot_plan(state, Team.RIVAL)
+    if plan is None:
+        puntaje += PUNTAJE_LINEA_CERRADA
+    else:
+        descarte, target = plan
+        if target in escenario.own_goal:
+            puntaje -= PUNTAJE_DISPARO_RIVAL
+        else:
+            puntaje -= PUNTAJE_PASE_RIVAL
+ 
+    if within_manhattan_range(balon, goal_cercano, escenario.max_shot_distance):
+        if plan is not None and plan[1] in escenario.own_goal:
+            puntaje -= PUNTAJE_DISPARO_RIVAL * 0.5
+ 
+    return puntaje
