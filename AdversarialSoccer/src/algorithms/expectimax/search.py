@@ -45,7 +45,27 @@ def expectimax_search(
 
         ### YOUR CODE HERE ###
         # --- SOLUTION START ---
-        
+        best_colombia_action: TeamAction | None = None
+        best_rival_action: TeamAction | None = None
+        best_value = float("-inf")
+
+        for colombia_action in colombia_actions:
+            rival_scores: list[tuple[TeamAction, float]] = []
+            for rival_action in rival_actions:
+                successor = step(state, colombia_action, rival_action)
+                value = ply(successor, depth - 1)[2]
+                rival_scores.append((rival_action, value))
+
+            greedy_rival_action, min_value = min(rival_scores, key=lambda item: item[1])
+            mean_value = sum(value for _action, value in rival_scores) / len(rival_scores)
+            expected_value = (1 - prob) * min_value + prob * mean_value
+
+            if expected_value > best_value:
+                best_colombia_action = colombia_action
+                best_rival_action = greedy_rival_action
+                best_value = expected_value
+
+        return best_colombia_action, best_rival_action, best_value
         # --- SOLUTION END ---
 
     return finish_search_root(*ply(state, depth))

@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 soccer_replay.html
+venv
