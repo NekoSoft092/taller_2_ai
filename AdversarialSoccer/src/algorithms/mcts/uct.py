@@ -22,5 +22,7 @@ def uct_score(
 
     ### YOUR CODE HERE ###
     # --- SOLUTION START ---
-    
+    exploitation = total_value / visits
+    exploration = exploration * math.sqrt(math.log(parent_visits) / visits)
+    return exploitation + exploration
     # --- SOLUTION END ---
