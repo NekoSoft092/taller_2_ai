@@ -136,8 +136,41 @@ def mcts_search(
     )
 
     ### YOUR CODE HERE ###
-    # --- SOLUTION START ---
+    #     """
+    #         Implementación Piloto Codigo GeeksForGeeks: https://www.geeksforgeeks.org/machine-learning/monte-carlo-policy-evaluation/
+    #         Se utilizo este enfoque  principalmente para crear una
+    #         línea de base. Al imitar la estructura simple de GeeksforGeeks un diccionario plano
+    #         para los retornos y un muestreo aleatorio y verificar de forma
+    #         directa y matemática si el simulador rollout y las reglas básicas de transición funcionan
+    #         correctamente.
+    #         """
+    # while root.untried_actions:
+    #     _expand(root, evaluation_function, rng, prob)
+    #
+    # historial_retornos = {hijo: [] for hijo in root.children}
+    #
+    # for _ in range(iterations):
+    # hijo_seleccionado = rng.choice(root.children)
+    #
+    # valor_retorno = _rollout(hijo_seleccionado.state, evaluation_function, rng, prob)
+    #
+    # historial_retornos[hijo_seleccionado].append(valor_retorno)
+    #
+    # for hijo, lista_valores in historial_retornos.items():
+    #      if lista_valores:
+    #          hijo.visits = len(lista_valores)
+    #          hijo.total_value = sum(lista_valores)
 
+    # --- SOLUTION START ---
+    for _ in range(iterations):
+        nodo = _select(root, exploration)
+        hijo = _expand(nodo, evaluation_function, rng, prob)
+
+        if hijo is not nodo and on_expand is not None:
+            on_expand()
+
+        val = _rollout(hijo.state, evaluation_function, rng, prob)
+        _backpropagate(hijo, val)
     # --- SOLUTION END ---
 
     return _best_root_move(root)
