@@ -25,15 +25,15 @@ PUNTAJE_DISTANCIA_META=4.0
 PUNTAJE_DISPARO_COL=6.0
 PUNTAJE_PASE_COL=3.0
 PUNTAJE_APOYO=1.5
-PUNTAJE_PRESION=1.0
-PUNTAJE_DISPERSION=0.5
+PUNTAJE_PRESION=1.0 #añadida tras refinación con conversación con la IA, usando el prompt: Qué métricas relevantes al mundo del problema pueden estar haciendo falta en el modelo de la función de evaliación?
+PUNTAJE_DISPERSION=0.5 #añadida tras refinación con conversación con la IA
 
 # --- 3: Puntajes defensivos ---
 
 PUNTAJE_PELIGRO=5.0
 PUNTAJE_DEFENSA=2.5
 PUNTAJE_LADO_GOAL=1.5
-PUNTAJE_MARCAJE=1.5
+PUNTAJE_MARCAJE=1.5 #añadida tras refinación con conversación con la IA
 PUNTAJE_DISPARO_RIVAL=4.0
 PUNTAJE_PASE_RIVAL=1.5
 PUNTAJE_LINEA_CERRADA=2.0
@@ -79,6 +79,8 @@ def evaluation_function(state: GameState) -> float:
         return PUNTAJE_DERROTA
     if state.outcome is MatchOutcome.DRAW:
         return PUNTAJE_EMPATE
+    
+    # Se separa la evaluación en dos partes: ofensiva y defensiva, dependiendo de si Colombia tiene la posesión del balón o no, cambio realizado tras refinación.
  
     if state.has_ball(Team.COLOMBIA):
         puntaje = puntaje_ofensiva(state)
@@ -125,10 +127,14 @@ def puntaje_ofensiva(state: GameState) -> float:
     )
     puntaje += PUNTAJE_APOYO * apoyo
     
+    #añadida tras refinación con conversación con la IA, medir presión como un indicador secundario pero relevante para evitar el avance a zonas con muchos rivales cercanos.
+    
     if rival:
         descarte, nearest_rival = nearest_to(balon, rival)
         presion = manhattan_distance(balon, nearest_rival) / norm
         puntaje += PUNTAJE_PRESION * presion
+    
+    #añadida tras refinación con conversación con la IA, medir dispersión como un indicador secundario pero relevante para evitar que todos los jugadores se concentren en una misma columna, lo que podría facilitar la defensa del rival.
         
     columnas_unicas = len({pos[0] for pos in colombia})
     puntaje += PUNTAJE_DISPERSION * (columnas_unicas / max(len(colombia), 1))
@@ -162,7 +168,9 @@ def puntaje_defensa(state: GameState) -> float:
             if abs(pos[0] - propio_goal_x) <= abs(balon[0] - propio_goal_x)
         )
         puntaje += PUNTAJE_LADO_GOAL * (goal_side / len(colombia))
- 
+        
+    #añadida tras refinación con conversación con la IA, medir qué tan cerca están los jugadores colombianos de los rivales para evitar que estos tengan oportunidades de disparo o pase, incentivando la marca efectiva.
+    
     if colombia and rival:
         costo_marcado = 0.0
         for rival_pos in rival:
