@@ -20,10 +20,10 @@ PUNTAJE_EMPATE = 0
 
 # --- 2: Puntajes ofensivos ---
 
-PUNTAJE_AVANCE=3.0
-PUNTAJE_DISTANCIA_META=4.0
-PUNTAJE_DISPARO_COL=6.0
-PUNTAJE_PASE_COL=3.0
+PUNTAJE_AVANCE=5.5
+PUNTAJE_DISTANCIA_META=6.0
+PUNTAJE_DISPARO_COL=8.0
+PUNTAJE_PASE_COL=6.0
 PUNTAJE_APOYO=1.5
 PUNTAJE_PRESION=1.0 #añadida tras refinación con conversación con la IA, usando el prompt: Qué métricas relevantes al mundo del problema pueden estar haciendo falta en el modelo de la función de evaliación?
 PUNTAJE_DISPERSION=0.5 #añadida tras refinación con conversación con la IA
